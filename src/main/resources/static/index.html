@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediBridge - Emergency Triage System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .input-area {
+            background: #f7f9fc;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .record-btn {
+            background: linear-gradient(135deg, #f56565 0%, #ed64a6 100%);
+        }
+        
+        .result-area {
+            background: #f7f9fc;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .severity-indicator {
+            width: 100%;
+            height: 30px;
+            background: #e1e8ed;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .severity-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .severity-critical { background: #f56565; }
+        .severity-urgent { background: #ed8936; }
+        .severity-normal { background: #48bb78; }
+        
+        .action-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+        }
+        
+        .emergency-alert {
+            background: #fed7d7;
+            border-left: 4px solid #f56565;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { background: #fed7d7; }
+            50% { background: #feb2b2; }
+            100% { background: #fed7d7; }
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .response-time {
+            font-size: 12px;
+            color: #718096;
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚑 MediBridge</h1>
+            <p>AI-Powered Emergency Medical Triage</p>
+        </div>
+        
+        <div class="content">
+            <div class="input-area">
+                <label for="voiceText"><strong>Describe your emergency:</strong></label>
+                <textarea 
+                    id="voiceText" 
+                    rows="4" 
+                    placeholder=xample: I'm having severe chest pain and it's spreading to my left arm. I feel dizzy and can't breathe properly."
+                ></textarea>
+                
+                <button onclick="analyzeText()">🔍 Analyze Emergency</button>
+                <button class="record-btn" onclick="startVoiceInput()">🎤 Voice Input</button>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 10px;">Analyzing with Gemini AI...</p>
+            </div>
+            
+            <div class="result-area" id="resultArea">
+                <h3>📋 Triage Analysis</h3>
+                <div id="resultContent"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let recognition = null;
+        
+        // Initialize speech recognition
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+         ognition.interimResults = false;
+            recognition.lang = 'en-US';
+            
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('voiceText').value = transcript;
+                analyzeText();
+            };
+            
+            recognition.onerror = function(event) {
+                alert('Error: ' + event.error);
+                document.getElementById('loading').style.display = 'none';
+            };
+        }
+        
+        function startVoiceInput() {
+            if (recognition) {
+                recognition.start();
+                document.getElementById('loading').style.display = 'block';
+                setTimeout(() => {
+                    if (document.getElementById('loading').style.display === 'block') {
+                        document.getElementById('loading').style.display = 'none';
+                    }
+                }, 10000);
+            } else {
+                alert('Speech recognition not supported in this browser. Please use Chrome or Edge.');
+            }
+        }
+        
+        async function analyzeText() {
+            const voiceText = document.getElementById('voiceText').value.trim();
+            
+            if (!voiceText) {
+                alert('Please describe your symptoms or use voice input');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultArea').style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/triage', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ voiceText: voiceText })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Server error: ' + response.status);
+                }
+                
+                const data = await response.json();
+                displayResult(data);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error analyzing symptoms. Please make sure the server is running.');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+        
+        function displayResult(data) {
+            const severity = data.severity;
+            let severityClass = 'severity-normal';
+            let severityText = 'Low Risk';
+            
+            if (severity >= 8) {
+                severityClass = 'severity-critical';
+                severityText = '🚨 CRITICAL - Immediate Emergency Required!';
+            } else if (severity >= 5) {
+                severityClass = 'severity-urgent';
+                severityText = '⚠️ URGENT - Seek Care Within 1 Hour';
+            } else {
+                severis = 'severity-normal';
+                severityText = '✅ Non-Urgent - Monitor Symptoms';
+            }
+            
+            let html = `
+                <div class="severity-indicator">
+                    <div class="severity-fill ${severityClass}" style="width: ${severity * 10}%">
+                        ${severity}/10
+                    </div>
+                </div>
+                <p><strong>Severity Level:</strong> ${severityText}</p>
+                <div class="action-card">
+                    <strong>🎯 Recommended Action:</strong><br>
+                    ${getActionEmoji(data.recommendedAction)} ${formatAction(data.recommendedAction)}
+                </div>
+                <div class="action-card">
+                    <strong>🏥 Likely Condition:</strong><br>
+                    ${data.likelyCondition}
+                </div>
+                <div class="action-card">
+                    <strong>🩺 First Aid Instructions:</strong><br>
+                    ${data.firstAidInstructions}
+        </div>
+                <div class="action-card">
+                    <strong>🤒 Symptoms Detected:</strong><br>
+                    ${data.symptoms.join(', ')}
+                </div>
+            `;
+            
+            if (data.requiresEmergencyContact) {
+                html += `
+                    <div class="emergency-alert">
+                        <strong>🚨 EMERGENCY ALERT 🚨</strong><br>
+                        Please call emergency services immediately!
+                        <br><br>
+                        <button onclick="window.location.href='tel:911'" style="background: #f56565; border: none; padding: 10px 20px;">
+                            📞 Call Emergency Services (911)
+                        </button>
+                    </div>
+                `;
+            }
+            
+            html += `<div class="response-time">⏱️ Response time: ${data.responseTimeMs}ms | Powered by Google Gemini AI</div>`;
+            
+            document.getElementById('resultContent').inml;
+            document.getElementById('resultArea').style.display = 'block';
+            
+            // Scroll to result
+            document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function getActionEmoji(action) {
+            const actions = {
+                'call_ambulance': '🚑',
+                'go_to_er': '🏥',
+                'see_doctor': '👨‍⚕️',
+                'home_care': '🏠'
+            };
+            return actions[action] || '📋';
+        }
+        
+        function formatAction(action) {
+            const actions = {
+                'call_ambulance': 'Call Ambulance Immediately',
+                'go_to_er': 'Go to Emergency Room',
+                'see_doctor': 'See Doctor Within 24 Hours',
+                'home_care': 'Home Care & Monitoring'
+            };
+            return actions[action] || action;
+        }
+    </script>
+</body>
+</html>

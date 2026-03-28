@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: medibridge
+  web:
+    resources:
+      static-locations: classpath:/static/
+      
+server:
+  port: 8080
+
+# Gemini Configuration
+gemini:
+  api:
+    # Empty default so the app (and tests) start when the env var is unset; set GEMINI_API_KEY for real calls.
+    key: ${GEMINI_API_KEY:}
+    model: gemini-1.5-flash
+    temperature: 0.1
