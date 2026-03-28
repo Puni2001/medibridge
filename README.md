@@ -30,9 +30,12 @@ Unlike static chatbots, MediBridge fuses **5 Google Cloud APIs** into a unified,
 
 ### 1. Launch the Orchestrator
 ```bash
+export GEMINI_API_KEY=your_gemini_api_key_here
+export GOOGLE_MAPS_API_KEY=your_maps_api_key_here
+
 ./mvnw spring-boot:run -Dspring-boot.run.arguments="\
---gemini.api.key=AIzaSyB3yKQMmpXOjbCHvAPOYArSy1xZOyXPq4o \
---google.maps.api.key=AIzaSyB1mHBw0l2nSDgj0J61juCpXd9oTAMfVOU"
+--gemini.api.key=${GEMINI_API_KEY} \
+--google.maps.api.key=${GOOGLE_MAPS_API_KEY}"
 ```
 
 ### 2. Enter the Dashboard

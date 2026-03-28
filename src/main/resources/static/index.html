@@ -270,11 +270,11 @@
             document.getElementById('condition-txt').innerText = triage.likelyCondition;
             document.getElementById('action-txt').innerText = (triage.recommendedAction || "").replace(/_/g, ' ').toUpperCase();
             document.getElementById('inst-txt').innerText = triage.firstAidInstructions;
-            document.getElementById('symptoms-txt').innerText = triage.symptoms.join(', ');
+            document.getElementById('symptoms-txt').innerText = (triage.symptoms || []).join(', ') || 'Detected via AI Engine';
             document.getElementById('meta-txt').innerText = `Latency: ${triage.responseTimeMs}ms | Gemini Orchestrator`;
 
             // Wound Panel
-            if (data.wound && data.wound.woundType !== "unable to determine") {
+            if (data.wound && data.wound.woundType && data.wound.woundType !== "unable to determine") {
                 document.getElementById('wound-card').style.display = 'block';
                 document.getElementById('wound-txt').innerText = `${data.wound.woundType} (Needs Stitches: ${data.wound.needsStitches ? "YES" : "NO"})`;
             }
@@ -285,10 +285,11 @@
                 resultCard.classList.add('trauma-border');
             }
 
-            // Hospitals
-            if (data.nearestHospitals && data.nearestHospitals.length > 0) {
-                document.getElementById('hospital-list').innerHTML = data.nearestHospitals.map(h => 
-                    `<li><span>${h.name || h}</span> <span>${h.distance || '??'}km</span></li>`
+            // Hospitals — API returns field as 'hospitals'
+            const hospitals = data.hospitals || data.nearestHospitals || [];
+            if (hospitals.length > 0) {
+                document.getElementById('hospital-list').innerHTML = hospitals.map(h =>
+                    `<li><span>🏥 ${h.name || h}</span><span style="opacity:0.5">${h.distance || ''}km away</span></li>`
                 ).join('');
                 document.getElementById('hospitals-panel').style.display = 'block';
             }
