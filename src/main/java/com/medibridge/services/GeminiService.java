@@ -73,7 +73,7 @@ public class GeminiService {
             return triageResponse;
             
         } catch (Exception e) {
-            log.error("AI Triage Error: {}", e.getMessage());
+            log.error("Error analyzing symptoms: {}", e.getMessage());
             return getFallbackResponse(voiceText, System.currentTimeMillis() - startTime);
         }
     }
