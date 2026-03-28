@@ -302,14 +302,13 @@
                 <p style="margin-top: 10px;">Analyzing with Gemini AI...</p>
             </div>
             
-            <div class="result-area" id="resultArea">
+            <div class="result-area glass-card" id="result-card" style="display:none;">
                 <div id="emergencyContact" style="display:none; text-align:center; margin-bottom: 20px;">
                     <button class="emergency-call-btn" onclick="window.location.href='tel:911'">📞 CALL EMERGENCY (911)</button>
                 </div>
-                <h3>📋 Triage Analysis</h3>
+                <h3 id="alert-tag">📋 Triage Analysis</h3>
                 <div id="resultContent"></div>
                 
-                <!-- New result sections -->
                 <div id="woundAnalysis" style="display:none; margin-top:20px;"></div>
                 <div id="voiceInstructions" style="display:none; margin-top:20px;">
                     <h3>🔊 Voice Instructions</h3>
@@ -317,6 +316,10 @@
                 </div>
                 <div id="hospitalsArea" style="display:none; margin-top:20px;"></div>
                 <div id="translatedInstructions" style="display:none; margin-top:20px;"></div>
+                
+                <div style="margin-top: 30px; text-align: center; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 15px;">
+                    <a href="https://github.com/Puni2001/medibridge/blob/main/HACKATHON_WINNING_DOSSIER.md" target="_blank" style="color: #667eea; font-weight: 600; text-decoration: none;">📄 View Comprehensive Winning Dossier & Scenario Analysis</a>
+                </div>
             </div>
         </div>
     </div>
@@ -456,10 +459,23 @@
             html += `<div class="response-time">⏱️ Response time: ${data.responseTimeMs}ms | Powered by Google Gemini AI</div>`;
             
             document.getElementById('resultContent').innerHTML = html;
-            document.getElementById('resultArea').style.display = 'block';
+            document.getElementById('result-card').style.display = 'block';
+            
+            // 110% Strategy: Visual Trauma Toggling
+            const alertTag = document.getElementById('alert-tag');
+            const resultCard = document.getElementById('result-card');
+            if (severity >= 8) {
+                document.body.classList.add('trauma-alert');
+                resultCard.classList.add('trauma-border');
+                if (alertTag) alertTag.innerHTML = '🚨 CRITICAL TRAUMA DETECTED';
+            } else {
+                document.body.classList.remove('trauma-alert');
+                resultCard.classList.remove('trauma-border');
+                if (alertTag) alertTag.innerHTML = '📋 Triage Analysis';
+            }
             
             // Scroll to result
-            document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('result-card').scrollIntoView({ behavior: 'smooth' });
         }
         
         function getActionEmoji(action) {
