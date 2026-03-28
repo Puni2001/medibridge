@@ -12,193 +12,90 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class GeminiService {
-
     private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
 
     private final String apiKey;
     private final String model;
     private final double temperature;
-    private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
-    
-    public GeminiService(
-            @Value("${gemini.api.key}") String apiKey,
-            @Value("${gemini.api.model}") String model,
-            @Value("${gemini.api.temperature}") double temperature) {
+    private final ObjectMapper objectMapper;
+
+    public GeminiService(@Value("${gemini.api.key:}") String apiKey,
+                         @Value("${gemini.model:gemini-1.5-flash}") String model,
+                         @Value("${gemini.temperature:0.7}") double temperature) {
         this.apiKey = apiKey;
         this.model = normalizeModelId(model);
         this.temperature = temperature;
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
         this.objectMapper = new ObjectMapper();
-        this.httpClient = HttpClient.newHttpClient();
-    }
-    
-    public TriageResponse analyzeSymptoms(String voiceText) {
-        return analyzeSymptoms(voiceText, null);
     }
 
     public TriageResponse analyzeSymptoms(String voiceText, String medicalHistory) {
         long startTime = System.currentTimeMillis();
-
         if (apiKey == null || apiKey.isBlank()) {
-            log.error("GEMINI_API_KEY is missing or empty.");
             return getFallbackResponse(voiceText, System.currentTimeMillis() - startTime);
         }
 
         try {
             String prompt = buildPrompt(voiceText, medicalHistory);
             String response = callGeminiAPI(prompt);
-            
-            // Clean markdown json formatting if Gemini includes it
-            if (response.startsWith("```json")) {
-                response = response.substring(7);
-            }
-            if (response.startsWith("```")) {
-                response = response.substring(3);
-            }
-            if (response.endsWith("```")) {
-                response = response.substring(0, response.length() - 3);
-            }
-            
             TriageResponse triageResponse = parseResponse(response.trim());
             triageResponse.setResponseTimeMs(System.currentTimeMillis() - startTime);
-            
-            log.info("Triage completed in {} ms, severity: {}", 
-                triageResponse.getResponseTimeMs(), triageResponse.getSeverity());
-            
             return triageResponse;
-            
         } catch (Exception e) {
-            log.error("Error analyzing symptoms: {}", e.getMessage());
+            log.error("AI Error: {}", e.getMessage());
             return getFallbackResponse(voiceText, System.currentTimeMillis() - startTime);
         }
     }
-    
+
     private String buildPrompt(String voiceText, String medicalHistory) {
-        String historySection = (medicalHistory != null && !medicalHistory.isBlank()) 
-            ? "\n\nMessy Medical History (MUST FACTOR INTO ANALYSIS):\n" + medicalHistory 
-            : "";
-            
-        return """
-            SYSTEM: You are a critical care medical triage system (EMD).
-            Analyze the following emergency input and messy medical history.
-            
-            USER SYMPTOMS: "%s"%s
-            
-            TASK: Return a JSON object with this EXACT structure (NO OTHER TEXT):
-            {
-              "symptoms": ["list", "of", "symptoms"],
-              "severity": 1-10,
-              "urgency": "immediate" | "urgent" | "non-urgent",
-              "likely_condition": "Short medical name",
-              "recommended_action": "call_ambulance" | "go_to_er" | "see_doctor" | "home_care",
-              "first_aid_instructions": "Step-by-step clear life saving instructions",
-              "requires_emergency_contact": boolean
-            }
-            
-            CRITICAL RULES:
-            1. If symptoms involve: CANNOT BREATHE, CHEST PAIN, STROKE, or UNCONSCIOUS -> Severity MUST be 10 and action MUST be "call_ambulance".
-            2. Factor the "Messy Medical History" into the first_aid_instructions (e.g., if allergic to something, warn against it).
-            3. Return only the raw JSON string. Do not use Markdown.
-            """.formatted(voiceText, historySection);
-    }
-    
-    /**
-     * REST path expects only the model id (e.g. {@code gemini-2.0-flash}), not {@code models/...}.
-     */
-    private static String normalizeModelId(String configured) {
-        if (configured == null || configured.isBlank()) {
-            return "gemini-2.0-flash";
-        }
-        String id = configured.trim();
-        if (id.startsWith("models/")) {
-            id = id.substring("models/".length());
-        }
-        return id;
+        return "Task: emergency triage for input: " + voiceText + " with history: " + medicalHistory + 
+               ". Return raw JSON: {symptoms[], severity[1-10], urgency, likely_condition, recommended_action, first_aid_instructions, requires_emergency_contact[bool]}";
     }
 
     private String callGeminiAPI(String prompt) throws Exception {
-        // Switch to query parameter to ensure compatibility across all API keys and regions
-        String url =
-                "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey.trim();
-
-        String requestBody = """
-            {
-                "contents": [{
-                    "parts": [{"text": "%s"}]
-                }],
-                "generationConfig": {
-                    "temperature": %f,
-                    "topP": 0.95,
-                    "topK": 40,
-                    "responseMimeType": "application/json"
-                }
-            }
-            """.formatted(prompt.replace("\"", "\\\"").replace("\n", "\\n"), temperature);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                .build();
-        
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        
-        if (response.statusCode() != 200) {
-            log.error("Gemini API Error {}: {}", response.statusCode(), response.body());
-            throw new RuntimeException("Gemini API error: " + response.body());
-        }
-        
-        JsonNode root = objectMapper.readTree(response.body());
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
+        String body = "{\"contents\":[{\"parts\":[{\"text\":\"" + prompt + "\"}]}]}";
+        HttpRequest req = HttpRequest.newBuilder().uri(URI.create(url)).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build();
+        HttpResponse<String> res = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+        JsonNode root = objectMapper.readTree(res.body());
         return root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
     }
-    
-    private TriageResponse parseResponse(String jsonResponse) throws Exception {
-        JsonNode root = objectMapper.readTree(jsonResponse);
-        
-        List<String> symptoms = new ArrayList<>();
-        if (root.has("symptoms") && root.get("symptoms").isArray()) {
-            root.get("symptoms").forEach(node -> symptoms.add(node.asText()));
-        }
-        
-        return TriageResponse.builder()
-            .symptoms(symptoms.isEmpty() ? List.of("Unable to determine") : symptoms)
-            .severity(root.has("severity") ? root.get("severity").asInt() : 0)
-            .urgency(root.has("urgency") ? root.get("urgency").asText() : "non-urgent")
-            .likelyCondition(root.has("likely_condition") ? root.get("likely_condition").asText() : "Unknown")
-            .recommendedAction(root.has("recommended_action") ? root.get("recommended_action").asText() : "home_care")
-            .firstAidInstructions(root.has("first_aid_instructions") ? root.get("first_aid_instructions").asText() : "Please rest and monitor symptoms")
-            .requiresEmergencyContact(root.has("requires_emergency_contact") && root.get("requires_emergency_contact").asBoolean())
-            .build();
-    }
-    
-    private TriageResponse getFallbackResponse(String input, long responseTime) {
-        String lowerInput = input.toLowerCase();
-        int severity = 0;
-        String action = "home_care";
-        String instructions = "Please seek medical attention if symptoms persist.";
-        
-        // High-severity keyword matching for foolproof demos
-        if (lowerInput.contains("breath") || lowerInput.contains("chest") || lowerInput.contains("heart") || 
-            lowerInput.contains("stroke") || lowerInput.contains("bleed") || lowerInput.contains("pain")) {
-            severity = 10;
-            action = "call_ambulance";
-            instructions = "🚨 CRITICAL: CALL EMERGENCY SERVICES IMMEDIATELY! Keep the person still and monitor vitals until help arrives.";
-        }
 
-        return TriageResponse.builder()
-            .symptoms(List.of("Analyzed via Safety Fallback (AI Connection Interrupted)"))
-            .severity(severity)
-            .urgency(severity >= 8 ? "immediate" : "non-urgent")
-            .likelyCondition("Emergency detected via Rule-Engine")
-            .recommendedAction(action)
-            .firstAidInstructions(instructions)
-            .requiresEmergencyContact(severity >= 8)
-            .responseTimeMs(responseTime)
-            .build();
+    private TriageResponse parseResponse(String json) throws Exception {
+        JsonNode root = objectMapper.readTree(json);
+        List<String> symptoms = new ArrayList<>();
+        if (root.path("symptoms").isArray()) root.path("symptoms").forEach(n -> symptoms.add(n.asText()));
+
+        return new TriageResponse(
+            symptoms,
+            root.path("severity").asInt(0),
+            root.path("urgency").asText("non-urgent"),
+            root.path("likely_condition").asText("Unknown"),
+            root.path("recommended_action").asText("home_care"),
+            root.path("first_aid_instructions").asText("Monitor symptoms"),
+            root.path("requires_emergency_contact").asBoolean(false),
+            0L
+        );
     }
+
+    private TriageResponse getFallbackResponse(String input, long time) {
+        int sev = 0;
+        String action = "home_care";
+        String inst = "Seek help if symptoms persist.";
+        if (input != null && (input.contains("breath") || input.contains("heart") || input.contains("pain"))) {
+            sev = 10; action = "call_ambulance"; inst = "🚨 CRITICAL: CALL EMERGENCY SERVICES!";
+        }
+        return new TriageResponse(List.of("Fallback Analysis"), sev, sev >= 8 ? "immediate" : "non-urgent", "Emergency Detected", action, inst, sev >= 8, time);
+    }
+
+    private static String normalizeModelId(String m) { return m != null && m.startsWith("models/") ? m.substring(7) : (m == null ? "gemini-1.5-flash" : m); }
 }

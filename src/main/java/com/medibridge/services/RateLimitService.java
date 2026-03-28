@@ -5,21 +5,25 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class RateLimitService {
-
-    private final Cache<String, AtomicInteger> requestCache;
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RateLimitService.class);
+    private final Cache<String, Integer> cache;
 
     public RateLimitService() {
-        this.requestCache = Caffeine.newBuilder()
+        this.cache = Caffeine.newBuilder()
                 .expireAfterWrite(Duration.ofMinutes(1))
+                .maximumSize(1000)
                 .build();
     }
 
-    public boolean isAllowed(String clientIp) {
-        AtomicInteger count = requestCache.get(clientIp, k -> new AtomicInteger(0));
-        return count.incrementAndGet() <= 10; // Max 10 requests per minute per IP
+    public boolean isAllowed(String ip) {
+        if (ip == null) return true;
+        Integer count = cache.getIfPresent(ip);
+        if (count == null) count = 0;
+        if (count >= 10) return false;
+        cache.put(ip, count + 1);
+        return true;
     }
 }

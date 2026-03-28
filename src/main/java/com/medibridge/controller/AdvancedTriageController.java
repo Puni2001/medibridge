@@ -1,17 +1,9 @@
 package com.medibridge.controller;
 
 import com.medibridge.dto.ComprehensiveEmergencyResponse;
-import com.medibridge.dto.TranslatedEmergency;
 import com.medibridge.dto.TriageResponse;
 import com.medibridge.dto.WoundAnalysis;
-import com.medibridge.services.GeminiService;
-import com.medibridge.services.MapsService;
-import com.medibridge.services.RateLimitService;
-import com.medibridge.services.TTSService;
-import com.medibridge.services.TranslationService;
-import com.medibridge.services.VisionService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import com.medibridge.services.*;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,11 +12,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v2")
+@RequestMapping("/api")
 @CrossOrigin(origins = "*")
-@RequiredArgsConstructor
-@Slf4j
 public class AdvancedTriageController {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AdvancedTriageController.class);
 
     private final GeminiService geminiService;
     private final VisionService visionService;
@@ -33,58 +24,38 @@ public class AdvancedTriageController {
     private final MapsService mapsService;
     private final RateLimitService rateLimitService;
 
+    public AdvancedTriageController(GeminiService geminiService, VisionService visionService,
+                                   TTSService ttsService, TranslationService translationService,
+                                   MapsService mapsService, RateLimitService rateLimitService) {
+        this.geminiService = geminiService;
+        this.visionService = visionService;
+        this.ttsService = ttsService;
+        this.translationService = translationService;
+        this.mapsService = mapsService;
+        this.rateLimitService = rateLimitService;
+    }
+
     @PostMapping(value = "/emergency", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ComprehensiveEmergencyResponse> emergency(
             @RequestParam(value = "voiceText", required = false) String voiceText,
-            @RequestParam(value = "medicalHistory", required = false) String medicalHistory,
+            @RequestParam(value = "medicalHistory", required = false) String history,
             @RequestParam(value = "image", required = false) MultipartFile image,
-            @RequestParam(value = "language", defaultValue = "en") String language,
-            @RequestParam(value = "latitude", defaultValue = "0") double latitude,
-            @RequestParam(value = "longitude", defaultValue = "0") double longitude,
-            jakarta.servlet.http.HttpServletRequest request) {
-
-        String clientIp = request.getRemoteAddr();
-        if (!rateLimitService.isAllowed(clientIp)) {
-            return ResponseEntity.status(429).build();
-        }
+            @RequestParam(value = "lang", defaultValue = "en") String lang,
+            @RequestParam(value = "lat", defaultValue = "0") double lat,
+            @RequestParam(value = "lon", defaultValue = "0") double lon) {
 
         long startTime = System.currentTimeMillis();
-        
-        TriageResponse triage = null;
-        WoundAnalysis woundAnalysis = null;
-        TranslatedEmergency translation = null;
-        byte[] voiceInstructions = null;
-        List<String> nearestHospitals = null;
+        log.info("Emergency Request: voiceText={}, lang={}", voiceText, lang);
 
-        if (voiceText != null && !voiceText.isBlank()) {
-            triage = geminiService.analyzeSymptoms(voiceText, medicalHistory);
-            
-            if (!language.equals("en") && triage != null && triage.getFirstAidInstructions() != null) {
-                translation = translationService.translateEmergency(
-                        triage.getFirstAidInstructions(), language);
-            }
-            
-            String textToSpeak = translation != null ? translation.getTranslatedText() : 
-                                (triage != null ? triage.getFirstAidInstructions() : "Please seek medical attention.");
-            voiceInstructions = ttsService.generateVoiceInstructions(textToSpeak, language);
-        }
+        TriageResponse triage = geminiService.analyzeSymptoms(voiceText, history);
+        WoundAnalysis wound = visionService.analyzeWound(image);
+        String translated = translationService.translate(triage.getRecommendedAction(), lang);
+        String tts = ttsService.synthesize(translated);
+        List<ComprehensiveEmergencyResponse.HospitalInfo> hospitals = mapsService.findNearestHospitals(lat, lon);
 
-        if (image != null && !image.isEmpty()) {
-            woundAnalysis = visionService.analyzeWound(image);
-        }
-
-        if (latitude != 0 && longitude != 0) {
-            nearestHospitals = mapsService.findNearestHospitals(latitude, longitude);
-        }
-
-        ComprehensiveEmergencyResponse response = ComprehensiveEmergencyResponse.builder()
-                .triage(triage)
-                .woundAnalysis(woundAnalysis)
-                .translatedInstructions(translation)
-                .voiceInstructions(voiceInstructions)
-                .nearestHospitals(nearestHospitals)
-                .responseTimeMs(System.currentTimeMillis() - startTime)
-                .build();
+        ComprehensiveEmergencyResponse response = new ComprehensiveEmergencyResponse(
+            triage, wound, hospitals, tts
+        );
 
         return ResponseEntity.ok(response);
     }
