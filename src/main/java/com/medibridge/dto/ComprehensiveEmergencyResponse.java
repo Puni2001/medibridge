@@ -12,5 +12,6 @@ public class ComprehensiveEmergencyResponse {
     private String firstAidDiagram; // URL from Imagen
     private byte[] voiceInstructions;
     private TranslatedEmergency translatedInstructions;
+    private List<String> nearestHospitals;
     private Long responseTimeMs;
 }

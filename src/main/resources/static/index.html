@@ -236,6 +236,7 @@
                     <h3>🔊 Voice Instructions</h3>
                     <audio controls></audio>
                 </div>
+                <div id="hospitalsArea" style="display:none; margin-top:20px;"></div>
                 <div id="translatedInstructions" style="display:none; margin-top:20px;"></div>
             </div>
         </div>
@@ -402,6 +403,22 @@
             const language = document.getElementById('languageSelect').value;
             const medicalHistory = document.getElementById('medicalHistory') ? document.getElementById('medicalHistory').value : "";
             
+            let latitude = 0;
+            let longitude = 0;
+
+            // Try to get location
+            try {
+                if ("geolocation" in navigator) {
+                    const position = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000 });
+                    });
+                    latitude = position.coords.latitude;
+                    longitude = position.coords.longitude;
+                }
+            } catch (e) {
+                console.warn("Location access denied or timed out");
+            }
+            
             if (!file && !voiceText && !medicalHistory) {
                 alert('Please provide voice text or upload a wound image');
                 return;
@@ -412,10 +429,13 @@
             document.getElementById('woundAnalysis').style.display = 'none';
             document.getElementById('voiceInstructions').style.display = 'none';
             document.getElementById('translatedInstructions').style.display = 'none';
+            document.getElementById('hospitalsArea').style.display = 'none';
             
             const formData = new FormData();
             formData.append('voiceText', voiceText);
             formData.append('medicalHistory', medicalHistory);
+            formData.append('latitude', latitude);
+            formData.append('longitude', longitude);
             
             if (file) {
                 formData.append('image', file);
@@ -495,6 +515,20 @@
                     </div>
                 `;
                 transEl.style.display = 'block';
+            }
+
+            // Display hospitals
+            if (data.nearestHospitals && data.nearestHospitals.length > 0) {
+                const hospEl = document.getElementById('hospitalsArea');
+                hospEl.innerHTML = `
+                    <h3>🏥 Nearest Emergency Centers</h3>
+                    <div class="action-card" style="border-left-color: #4299e1;">
+                        <ul>
+                            ${data.nearestHospitals.map(h => `<li>${h}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+                hospEl.style.display = 'block';
             }
         }
     </script>

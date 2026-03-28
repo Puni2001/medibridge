@@ -5,6 +5,7 @@ import com.medibridge.dto.TranslatedEmergency;
 import com.medibridge.dto.TriageResponse;
 import com.medibridge.dto.WoundAnalysis;
 import com.medibridge.services.GeminiService;
+import com.medibridge.services.MapsService;
 import com.medibridge.services.TTSService;
 import com.medibridge.services.TranslationService;
 import com.medibridge.services.VisionService;
@@ -14,6 +15,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v2")
@@ -26,13 +29,16 @@ public class AdvancedTriageController {
     private final VisionService visionService;
     private final TTSService ttsService;
     private final TranslationService translationService;
+    private final MapsService mapsService;
 
     @PostMapping(value = "/emergency", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ComprehensiveEmergencyResponse> emergency(
             @RequestParam(value = "voiceText", required = false) String voiceText,
             @RequestParam(value = "medicalHistory", required = false) String medicalHistory,
             @RequestParam(value = "image", required = false) MultipartFile image,
-            @RequestParam(value = "language", defaultValue = "en") String language) {
+            @RequestParam(value = "language", defaultValue = "en") String language,
+            @RequestParam(value = "latitude", defaultValue = "0") double latitude,
+            @RequestParam(value = "longitude", defaultValue = "0") double longitude) {
 
         long startTime = System.currentTimeMillis();
         
@@ -40,6 +46,7 @@ public class AdvancedTriageController {
         WoundAnalysis woundAnalysis = null;
         TranslatedEmergency translation = null;
         byte[] voiceInstructions = null;
+        List<String> nearestHospitals = null;
 
         if (voiceText != null && !voiceText.isBlank()) {
             triage = geminiService.analyzeSymptoms(voiceText, medicalHistory);
@@ -58,11 +65,16 @@ public class AdvancedTriageController {
             woundAnalysis = visionService.analyzeWound(image);
         }
 
+        if (latitude != 0 && longitude != 0) {
+            nearestHospitals = mapsService.findNearestHospitals(latitude, longitude);
+        }
+
         ComprehensiveEmergencyResponse response = ComprehensiveEmergencyResponse.builder()
                 .triage(triage)
                 .woundAnalysis(woundAnalysis)
                 .translatedInstructions(translation)
                 .voiceInstructions(voiceInstructions)
+                .nearestHospitals(nearestHospitals)
                 .responseTimeMs(System.currentTimeMillis() - startTime)
                 .build();
 
