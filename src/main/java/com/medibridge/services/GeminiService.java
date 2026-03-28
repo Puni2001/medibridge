@@ -123,9 +123,9 @@ public class GeminiService {
     }
 
     private String callGeminiAPI(String prompt) throws Exception {
-        // Prefer header auth (Google-recommended); avoids empty ?key= and encoding issues in query strings.
+        // Switch to query parameter to ensure compatibility across all API keys and regions
         String url =
-                "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent";
+                "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey.trim();
 
         String requestBody = """
             {
@@ -135,29 +135,27 @@ public class GeminiService {
                 "generationConfig": {
                     "temperature": %f,
                     "topP": 0.95,
-                    "topK": 40
+                    "topK": 40,
+                    "responseMimeType": "application/json"
                 }
             }
-            """.formatted(prompt.replace("\"", "\\\""), temperature);
+            """.formatted(prompt.replace("\"", "\\\"").replace("\n", "\\n"), temperature);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", "application/json")
-                .header("x-goog-api-key", apiKey.trim())
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
         
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         
         if (response.statusCode() != 200) {
+            log.error("Gemini API Error {}: {}", response.statusCode(), response.body());
             throw new RuntimeException("Gemini API error: " + response.body());
         }
         
-        // Parse response to extract text
         JsonNode root = objectMapper.readTree(response.body());
-        String generatedText = root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
-        
-        return generatedText;
+        return root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
     }
     
     private TriageResponse parseResponse(String jsonResponse) throws Exception {
