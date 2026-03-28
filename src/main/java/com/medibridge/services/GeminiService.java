@@ -45,13 +45,18 @@ public class GeminiService {
         }
 
         try {
+            log.info("[AI ANALYSIS START] Model: {}, Symptoms Length: {} characters", model, voiceText != null ? voiceText.length() : 0);
             String prompt = buildPrompt(voiceText, medicalHistory);
             String response = callGeminiAPI(prompt);
+            
             TriageResponse triageResponse = parseResponse(response.trim());
-            triageResponse.setResponseTimeMs(System.currentTimeMillis() - startTime);
+            long latency = System.currentTimeMillis() - startTime;
+            log.info("[AI ANALYSIS SUCCESS] Latency: {}ms, Severity: {}/10, Urgency: {}", latency, triageResponse.getSeverity(), triageResponse.getUrgency());
+            
+            triageResponse.setResponseTimeMs(latency);
             return triageResponse;
         } catch (Exception e) {
-            log.error("AI Error: {}", e.getMessage());
+            log.error("[AI ANALYSIS FAILED] Error: {}", e.getMessage());
             return getFallbackResponse(voiceText, System.currentTimeMillis() - startTime);
         }
     }
