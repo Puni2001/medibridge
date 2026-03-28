@@ -6,13 +6,21 @@ spring:
       static-locations: classpath:/static/
       
 server:
-  # Cloud Run injects PORT; default 8080 for local runs
-  port: ${PORT:8080}
+  port: 8080
+
+# Google Cloud Configuration
+google:
+  cloud:
+    project-id: ${GOOGLE_CLOUD_PROJECT_ID}
+    credentials:
+      location: ${GOOGLE_APPLICATION_CREDENTIALS}
 
 gemini:
   api:
-    key: ${GEMINI_API_KEY:}
-    # Unversioned gemini-1.5-flash often 404s on v1beta; use a current id (override via env GEMINI_MODEL).
-    # List yours: GET https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_KEY
-    model: ${GEMINI_MODEL:gemini-2.0-flash}
+    key: ${GEMINI_API_KEY}
+    model: gemini-1.5-flash
     temperature: 0.1
+
+maps:
+  api:
+    key: ${GOOGLE_MAPS_API_KEY}
