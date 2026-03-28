@@ -46,7 +46,7 @@ public class GeminiService {
 
         if (apiKey == null || apiKey.isBlank()) {
             log.error("GEMINI_API_KEY is missing or empty.");
-            return getFallbackResponse(System.currentTimeMillis() - startTime);
+            return getFallbackResponse(voiceText, System.currentTimeMillis() - startTime);
         }
 
         try {
@@ -73,8 +73,8 @@ public class GeminiService {
             return triageResponse;
             
         } catch (Exception e) {
-            log.error("Error analyzing symptoms: {}", e.getMessage());
-            return getFallbackResponse(System.currentTimeMillis() - startTime);
+            log.error("AI Triage Error: {}", e.getMessage());
+            return getFallbackResponse(voiceText, System.currentTimeMillis() - startTime);
         }
     }
     
@@ -176,15 +176,28 @@ public class GeminiService {
             .build();
     }
     
-    private TriageResponse getFallbackResponse(long responseTime) {
+    private TriageResponse getFallbackResponse(String input, long responseTime) {
+        String lowerInput = input.toLowerCase();
+        int severity = 0;
+        String action = "home_care";
+        String instructions = "Please seek medical attention if symptoms persist.";
+        
+        // High-severity keyword matching for foolproof demos
+        if (lowerInput.contains("breath") || lowerInput.contains("chest") || lowerInput.contains("heart") || 
+            lowerInput.contains("stroke") || lowerInput.contains("bleed") || lowerInput.contains("pain")) {
+            severity = 10;
+            action = "call_ambulance";
+            instructions = "🚨 CRITICAL: CALL EMERGENCY SERVICES IMMEDIATELY! Keep the person still and monitor vitals until help arrives.";
+        }
+
         return TriageResponse.builder()
-            .symptoms(List.of("Unable to analyze"))
-            .severity(0)
-            .urgency("non-urgent")
-            .likelyCondition("Unable to determine")
-            .recommendedAction("home_care")
-            .firstAidInstructions("Please rest and consult a doctor if symptoms persist")
-            .requiresEmergencyContact(false)
+            .symptoms(List.of("Analyzed via Safety Fallback (AI Connection Interrupted)"))
+            .severity(severity)
+            .urgency(severity >= 8 ? "immediate" : "non-urgent")
+            .likelyCondition("Emergency detected via Rule-Engine")
+            .recommendedAction(action)
+            .firstAidInstructions(instructions)
+            .requiresEmergencyContact(severity >= 8)
             .responseTimeMs(responseTime)
             .build();
     }
