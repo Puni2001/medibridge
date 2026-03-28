@@ -194,10 +194,19 @@
                 <button class="record-btn" onclick="startVoiceInput()">🎤 Voice Input</button>
             </div>
             
+            <div class="input-area" style="margin-bottom: 20px;">
+                <h3>📋 Messy Medical History (Optional)</h3>
+                <textarea 
+                    id="medicalHistory" 
+                    rows="3" 
+                    placeholder="Paste messy medical history or allergies here to improve Gemini's triage..."
+                ></textarea>
+            </div>
+
             <div class="input-area">
                 <h3>📸 Upload Wound Photo</h3>
                 <input type="file" id="woundImage" accept="image/*" capture="environment">
-                <button onclick="analyzeWithImage()">Analyze Wound</button>
+                <button onclick="analyzeWithImage()">Analyze Emergency Request</button>
             </div>
             
             <div class="input-area">
@@ -391,8 +400,9 @@
             const file = document.getElementById('woundImage').files[0];
             const voiceText = document.getElementById('voiceText').value;
             const language = document.getElementById('languageSelect').value;
+            const medicalHistory = document.getElementById('medicalHistory') ? document.getElementById('medicalHistory').value : "";
             
-            if (!file && !voiceText) {
+            if (!file && !voiceText && !medicalHistory) {
                 alert('Please provide voice text or upload a wound image');
                 return;
             }
@@ -405,6 +415,7 @@
             
             const formData = new FormData();
             formData.append('voiceText', voiceText);
+            formData.append('medicalHistory', medicalHistory);
             
             if (file) {
                 formData.append('image', file);

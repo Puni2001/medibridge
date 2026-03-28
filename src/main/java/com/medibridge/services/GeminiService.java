@@ -38,19 +38,33 @@ public class GeminiService {
     }
     
     public TriageResponse analyzeSymptoms(String voiceText) {
+        return analyzeSymptoms(voiceText, null);
+    }
+
+    public TriageResponse analyzeSymptoms(String voiceText, String medicalHistory) {
         long startTime = System.currentTimeMillis();
 
         if (apiKey == null || apiKey.isBlank()) {
-            log.error(
-                    "GEMINI_API_KEY is missing or empty. Set it in your environment and restart, "
-                            + "or export it before ./mvnw spring-boot:run. Create a key: https://aistudio.google.com/apikey");
+            log.error("GEMINI_API_KEY is missing or empty.");
             return getFallbackResponse(System.currentTimeMillis() - startTime);
         }
 
         try {
-            String prompt = buildPrompt(voiceText);
+            String prompt = buildPrompt(voiceText, medicalHistory);
             String response = callGeminiAPI(prompt);
-            TriageResponse triageResponse = parseResponse(response);
+            
+            // Clean markdown json formatting if Gemini includes it
+            if (response.startsWith("```json")) {
+                response = response.substring(7);
+            }
+            if (response.startsWith("```")) {
+                response = response.substring(3);
+            }
+            if (response.endsWith("```")) {
+                response = response.substring(0, response.length() - 3);
+            }
+            
+            TriageResponse triageResponse = parseResponse(response.trim());
             triageResponse.setResponseTimeMs(System.currentTimeMillis() - startTime);
             
             log.info("Triage completed in {} ms, severity: {}", 
@@ -64,13 +78,17 @@ public class GeminiService {
         }
     }
     
-    private String buildPrompt(String voiceText) {
+    private String buildPrompt(String voiceText, String medicalHistory) {
+        String historySection = (medicalHistory != null && !medicalHistory.isBlank()) 
+            ? "\n\nMessy Medical History (Extract relevant pre-existing conditions/allergies from this):\n" + medicalHistory 
+            : "";
+            
         return """
             You are a medical triage assistant. Analyze this voice transcript and return ONLY JSON.
             
-            Transcript: "%s"
+            Transcript: "%s"%s
             
-            Return JSON with this exact structure:
+            Return JSON with this exact structure (NO MARKDOWN WRAPPERS):
             {
               "symptoms": ["symptom1", "symptom2"],
               "severity": 5,
@@ -86,8 +104,8 @@ public class GeminiService {
             - urgency: "immediate", "urgent", or "non-urgent"
             - recommended_action: "call_ambulance", "go_to_er", "see_doctor", or "home_care"
             - If life-threatening symptoms: severity >= 8
-            - Always include clear first aid instructions
-            """.formatted(voiceText);
+            - Always include clear first aid instructions and factor the medical history into them!
+            """.formatted(voiceText, historySection);
     }
     
     /**
