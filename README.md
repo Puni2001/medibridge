@@ -338,11 +338,21 @@ graph LR
 
 ### Environment Setup
 
+# 🚑 MediBridge: AI-Powered Emergency Triage
+
+🚀 **Live URL:** [https://medibridge-397511891890.us-central1.run.app](https://medibridge-397511891890.us-central1.run.app)
+
+---
+
+## 🏁 Getting Started
+
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/medibridge.git
+git clone https://github.com/Puni2001/medibridge.git
 cd medibridge
+```
 
+```bash
 # Set environment variables
 export GEMINI_API_KEY="your-gemini-key"
 export GOOGLE_CLOUD_PROJECT_ID="your-project-id"

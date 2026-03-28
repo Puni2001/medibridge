@@ -96,10 +96,21 @@ public class GeminiService {
         int sev = 0;
         String action = "home_care";
         String inst = "Seek help if symptoms persist.";
-        if (input != null && (input.contains("breath") || input.contains("heart") || input.contains("pain"))) {
-            sev = 10; action = "call_ambulance"; inst = "🚨 CRITICAL: CALL EMERGENCY SERVICES!";
+        String lowerInput = (input != null) ? input.toLowerCase() : "";
+        
+        // Comprehensive Emergency Keyword Engine (Fail-Safe)
+        if (lowerInput.contains("breath") || lowerInput.contains("chest") || lowerInput.contains("heart") || 
+            lowerInput.contains("pain") || lowerInput.contains("bleed") || lowerInput.contains("stroke") ||
+            lowerInput.contains("see") || lowerInput.contains("vision") || lowerInput.contains("blind") ||
+            lowerInput.contains("eye") || lowerInput.contains("faint") || lowerInput.contains("conscious")) {
+            
+            sev = 10; 
+            action = "call_ambulance"; 
+            inst = "🚨 CRITICAL: CALL EMERGENCY SERVICES IMMEDIATELY! Possible stroke or severe injury detected. Keep the person still.";
         }
-        return new TriageResponse(List.of("Fallback Analysis"), sev, sev >= 8 ? "immediate" : "non-urgent", "Emergency Detected", action, inst, sev >= 8, time);
+        
+        return new TriageResponse(List.of("Fallback Analysis (Safety Engine Active)"), sev, sev >= 8 ? "immediate" : "non-urgent", 
+                                  "Emergency Rule-Engine Match", action, inst, sev >= 8, time);
     }
 
     private static String normalizeModelId(String m) { return m != null && m.startsWith("models/") ? m.substring(7) : (m == null ? "gemini-1.5-flash" : m); }
