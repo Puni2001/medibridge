@@ -80,31 +80,30 @@ public class GeminiService {
     
     private String buildPrompt(String voiceText, String medicalHistory) {
         String historySection = (medicalHistory != null && !medicalHistory.isBlank()) 
-            ? "\n\nMessy Medical History (Extract relevant pre-existing conditions/allergies from this):\n" + medicalHistory 
+            ? "\n\nMessy Medical History (MUST FACTOR INTO ANALYSIS):\n" + medicalHistory 
             : "";
             
         return """
-            You are a medical triage assistant. Analyze this voice transcript and return ONLY JSON.
+            SYSTEM: You are a critical care medical triage system (EMD).
+            Analyze the following emergency input and messy medical history.
             
-            Transcript: "%s"%s
+            USER SYMPTOMS: "%s"%s
             
-            Return JSON with this exact structure (NO MARKDOWN WRAPPERS):
+            TASK: Return a JSON object with this EXACT structure (NO OTHER TEXT):
             {
-              "symptoms": ["symptom1", "symptom2"],
-              "severity": 5,
-              "urgency": "immediate",
-              "likely_condition": "condition name",
-              "recommended_action": "call_ambulance",
-              "first_aid_instructions": "clear instructions",
-              "requires_emergency_contact": true
+              "symptoms": ["list", "of", "symptoms"],
+              "severity": 1-10,
+              "urgency": "immediate" | "urgent" | "non-urgent",
+              "likely_condition": "Short medical name",
+              "recommended_action": "call_ambulance" | "go_to_er" | "see_doctor" | "home_care",
+              "first_aid_instructions": "Step-by-step clear life saving instructions",
+              "requires_emergency_contact": boolean
             }
             
-            Rules:
-            - severity: 1-10 (10=critical)
-            - urgency: "immediate", "urgent", or "non-urgent"
-            - recommended_action: "call_ambulance", "go_to_er", "see_doctor", or "home_care"
-            - If life-threatening symptoms: severity >= 8
-            - Always include clear first aid instructions and factor the medical history into them!
+            CRITICAL RULES:
+            1. If symptoms involve: CANNOT BREATHE, CHEST PAIN, STROKE, or UNCONSCIOUS -> Severity MUST be 10 and action MUST be "call_ambulance".
+            2. Factor the "Messy Medical History" into the first_aid_instructions (e.g., if allergic to something, warn against it).
+            3. Return only the raw JSON string. Do not use Markdown.
             """.formatted(voiceText, historySection);
     }
     

@@ -6,6 +6,7 @@ import com.medibridge.dto.TriageResponse;
 import com.medibridge.dto.WoundAnalysis;
 import com.medibridge.services.GeminiService;
 import com.medibridge.services.MapsService;
+import com.medibridge.services.RateLimitService;
 import com.medibridge.services.TTSService;
 import com.medibridge.services.TranslationService;
 import com.medibridge.services.VisionService;
@@ -30,6 +31,7 @@ public class AdvancedTriageController {
     private final TTSService ttsService;
     private final TranslationService translationService;
     private final MapsService mapsService;
+    private final RateLimitService rateLimitService;
 
     @PostMapping(value = "/emergency", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ComprehensiveEmergencyResponse> emergency(
@@ -38,7 +40,13 @@ public class AdvancedTriageController {
             @RequestParam(value = "image", required = false) MultipartFile image,
             @RequestParam(value = "language", defaultValue = "en") String language,
             @RequestParam(value = "latitude", defaultValue = "0") double latitude,
-            @RequestParam(value = "longitude", defaultValue = "0") double longitude) {
+            @RequestParam(value = "longitude", defaultValue = "0") double longitude,
+            jakarta.servlet.http.HttpServletRequest request) {
+
+        String clientIp = request.getRemoteAddr();
+        if (!rateLimitService.isAllowed(clientIp)) {
+            return ResponseEntity.status(429).build();
+        }
 
         long startTime = System.currentTimeMillis();
         
