@@ -22,16 +22,13 @@ public class GeminiService {
 
     private final String apiKey;
     private final String model;
-    private final double temperature;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
     public GeminiService(@Value("${gemini.api.key:}") String apiKey,
-                         @Value("${gemini.model:gemini-1.5-flash}") String model,
-                         @Value("${gemini.temperature:0.7}") double temperature) {
+                         @Value("${gemini.model:gemini-1.5-flash}") String model) {
         this.apiKey = apiKey;
         this.model = normalizeModelId(model);
-        this.temperature = temperature;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -72,11 +69,17 @@ public class GeminiService {
 
     private String callGeminiAPI(String prompt) throws Exception {
         String url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
-        // Optimized for high reasoning (Higher Top-K)
-        String body = "{\"contents\":[{\"parts\":[{\"text\":\"" + prompt + "\"}]}], \"generationConfig\": {\"temperature\": 0.2, \"topK\": 50, \"responseMimeType\": \"application/json\"}}";
+        String body = "{\"contents\":[{\"parts\":[{\"text\":\"" + prompt + "\"}]}], \"generationConfig\": {\"topK\": 50, \"responseMimeType\": \"application/json\"}}";
         HttpRequest req = HttpRequest.newBuilder().uri(URI.create(url)).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build();
-        HttpResponse<String> res = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
-        JsonNode root = objectMapper.readTree(res.body());
+        HttpResponse<String> response = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+        
+        if (response.statusCode() == 200) {
+            log.info("Maps API response received successfully.");
+        } else {
+            log.warn("Maps API returned non-200 status: {}", response.statusCode());
+        }
+        
+        JsonNode root = objectMapper.readTree(response.body());
         return root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
     }
 

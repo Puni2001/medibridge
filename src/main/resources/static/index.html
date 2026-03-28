@@ -55,6 +55,7 @@
             font-weight: 800;
             background: linear-gradient(to right, #60a5fa, #a78bfa);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 10px;
         }
@@ -129,19 +130,19 @@
 
         <div class="glass-card">
             <div class="input-group">
-                <label class="input-label">Describe Medical Crisis</label>
-                <textarea id="voiceText" class="emergency-input" rows="4" placeholder="Describe the medical crisis..."></textarea>
-                <button id="recordBtn" onclick="startVoiceInput()" class="btn-record">🎤 Start Voice Input</button>
+                <label class="input-label" for="voiceText">Describe Medical Crisis</label>
+                <textarea id="voiceText" class="emergency-input" rows="4" placeholder="Describe the medical crisis..." aria-label="Describe the medical crisis"></textarea>
+                <button id="recordBtn" onclick="startVoiceInput()" class="btn-record" aria-label="Start voice input">🎤 Start Voice Input</button>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
                 <div class="input-group">
-                    <label class="input-label">Medical History / Allergies</label>
-                    <textarea id="medicalHistory" class="emergency-input" rows="2" placeholder="Asthma, allergies, etc..."></textarea>
+                    <label class="input-label" for="medicalHistory">Medical History / Allergies</label>
+                    <textarea id="medicalHistory" class="emergency-input" rows="2" placeholder="Asthma, allergies, etc..." aria-label="Medical history and allergies"></textarea>
                 </div>
                 <div class="input-group">
-                    <label class="input-label">Target Language</label>
-                    <select id="languageSelect" class="emergency-input">
+                    <label class="input-label" for="languageSelect">Target Language</label>
+                    <select id="languageSelect" class="emergency-input" aria-label="Select target language">
                         <option value="en">English (Professional)</option>
                         <option value="es">Español (Emergency)</option>
                         <option value="hi">हिन्दी (India)</option>
@@ -151,11 +152,11 @@
             </div>
 
             <div class="input-group">
-                <label class="input-label">Wound Photo Evidence (Vision API)</label>
-                <input type="file" id="woundImage" class="emergency-input" style="padding: 15px;">
+                <label class="input-label" for="woundImage">Wound Photo Evidence (Vision API)</label>
+                <input type="file" id="woundImage" class="emergency-input" style="padding: 15px;" aria-label="Upload wound photo">
             </div>
 
-            <button onclick="runAnalysis()" class="btn-primary">🚀 START FULL MULTIMODAL TRIAGE</button>
+            <button onclick="runAnalysis()" class="btn-primary" aria-label="Start full multimodal triage">🚀 START FULL MULTIMODAL TRIAGE</button>
 
             <!-- 👑 WINNING VISION DASHBOARD (JUDGE SECTION) -->
             <div class="glass-card" style="margin-top: 30px; border: 2px solid rgba(234, 179, 8, 0.3); background: rgba(234, 179, 8, 0.05); padding: 30px;">
@@ -201,7 +202,7 @@
                 </div>
 
                 <div id="audio-panel" style="margin-top: 20px; display: none; text-align: center;">
-                    <audio id="tts-audio" controls style="width: 100%; border-radius: 10px;"></audio>
+                    <audio id="tts-audio" controls style="width: 100%; border-radius: 10px;" aria-label="Audio instructions"></audio>
                 </div>
 
                 <div style="margin-top: 30px; text-align: center; opacity: 0.5; font-size: 0.8rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">

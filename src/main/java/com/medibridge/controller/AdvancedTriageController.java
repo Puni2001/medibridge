@@ -22,17 +22,15 @@ public class AdvancedTriageController {
     private final TTSService ttsService;
     private final TranslationService translationService;
     private final MapsService mapsService;
-    private final RateLimitService rateLimitService;
 
     public AdvancedTriageController(GeminiService geminiService, VisionService visionService,
                                    TTSService ttsService, TranslationService translationService,
-                                   MapsService mapsService, RateLimitService rateLimitService) {
+                                   MapsService mapsService) {
         this.geminiService = geminiService;
         this.visionService = visionService;
         this.ttsService = ttsService;
         this.translationService = translationService;
         this.mapsService = mapsService;
-        this.rateLimitService = rateLimitService;
     }
 
     @PostMapping(value = "/emergency", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -56,7 +54,7 @@ public class AdvancedTriageController {
         ComprehensiveEmergencyResponse response = new ComprehensiveEmergencyResponse(
             triage, wound, hospitals, tts
         );
-
+        log.info("Emergency Response completed in {}ms", System.currentTimeMillis() - startTime);
         return ResponseEntity.ok(response);
     }
 }

@@ -20,6 +20,7 @@ public class RateLimitService {
 
     public boolean isAllowed(String ip) {
         if (ip == null) return true;
+        log.info("Rate limit check for IP: {}", ip);
         Integer count = cache.getIfPresent(ip);
         if (count == null) count = 0;
         if (count >= 10) return false;

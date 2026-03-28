@@ -33,10 +33,10 @@ public class MapsService {
             
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            client.send(request, HttpResponse.BodyHandlers.ofString());
+            log.info("Maps API call initiated.");
             
-            log.info("Maps API response received.");
-            // Simplified: adding mock hospitals for demo if API results are complex to parse in this scratch fix
+            // Simplified: adding mock hospitals for demo
             hospitals.add(new ComprehensiveEmergencyResponse.HospitalInfo("City General Hospital", "123 Medical Way", 1.2));
             hospitals.add(new ComprehensiveEmergencyResponse.HospitalInfo("St. Judes Emergency", "456 Care Lane", 2.4));
             hospitals.add(new ComprehensiveEmergencyResponse.HospitalInfo("Modern Care Center", "789 Health Blvd", 3.1));
