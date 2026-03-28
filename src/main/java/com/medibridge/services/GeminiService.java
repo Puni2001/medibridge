@@ -31,7 +31,7 @@ public class GeminiService {
             @Value("${gemini.api.model}") String model,
             @Value("${gemini.api.temperature}") double temperature) {
         this.apiKey = apiKey;
-        this.model = model;
+        this.model = normalizeModelId(model);
         this.temperature = temperature;
         this.objectMapper = new ObjectMapper();
         this.httpClient = HttpClient.newHttpClient();
@@ -39,7 +39,14 @@ public class GeminiService {
     
     public TriageResponse analyzeSymptoms(String voiceText) {
         long startTime = System.currentTimeMillis();
-        
+
+        if (apiKey == null || apiKey.isBlank()) {
+            log.error(
+                    "GEMINI_API_KEY is missing or empty. Set it in your environment and restart, "
+                            + "or export it before ./mvnw spring-boot:run. Create a key: https://aistudio.google.com/apikey");
+            return getFallbackResponse(System.currentTimeMillis() - startTime);
+        }
+
         try {
             String prompt = buildPrompt(voiceText);
             String response = callGeminiAPI(prompt);
@@ -83,9 +90,25 @@ public class GeminiService {
             """.formatted(voiceText);
     }
     
+    /**
+     * REST path expects only the model id (e.g. {@code gemini-2.0-flash}), not {@code models/...}.
+     */
+    private static String normalizeModelId(String configured) {
+        if (configured == null || configured.isBlank()) {
+            return "gemini-2.0-flash";
+        }
+        String id = configured.trim();
+        if (id.startsWith("models/")) {
+            id = id.substring("models/".length());
+        }
+        return id;
+    }
+
     private String callGeminiAPI(String prompt) throws Exception {
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
-        
+        // Prefer header auth (Google-recommended); avoids empty ?key= and encoding issues in query strings.
+        String url =
+                "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent";
+
         String requestBody = """
             {
                 "contents": [{
@@ -98,10 +121,11 @@ public class GeminiService {
                 }
             }
             """.formatted(prompt.replace("\"", "\\\""), temperature);
-        
+
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", "application/json")
+                .header("x-goog-api-key", apiKey.trim())
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
         

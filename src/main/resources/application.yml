@@ -6,10 +6,13 @@ spring:
       static-locations: classpath:/static/
       
 server:
-  port: 8080
+  # Cloud Run injects PORT; default 8080 for local runs
+  port: ${PORT:8080}
 
 gemini:
   api:
-    key: ${GEMINI_API_KEY}
-    model: gemini-1.5-flash
+    key: ${GEMINI_API_KEY:}
+    # Unversioned gemini-1.5-flash often 404s on v1beta; use a current id (override via env GEMINI_MODEL).
+    # List yours: GET https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_KEY
+    model: ${GEMINI_MODEL:gemini-2.0-flash}
     temperature: 0.1
