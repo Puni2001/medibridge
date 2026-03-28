@@ -1,17 +1,13 @@
-# Build
-FROM eclipse-temurin:17-jdk-jammy AS build
+# Stage 1: Build JAR
+FROM maven:3.8.4-openjdk-17-slim AS build
 WORKDIR /app
-COPY mvnw pom.xml ./
-COPY .mvn .mvn
-RUN chmod +x mvnw
+COPY pom.xml .
 COPY src ./src
-RUN ./mvnw -q -B -DskipTests package
+RUN mvn clean package -DskipTests
 
-# Run (Cloud Run sets PORT; Spring reads it via application.yml)
-FROM eclipse-temurin:17-jre-jammy
+# Stage 2: Run App
+FROM openjdk:17-jdk-slim
 WORKDIR /app
 COPY --from=build /app/target/medibridge-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8080
-# Non-root (nobody exists on eclipse-temurin jammy images)
-USER nobody
-ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
