@@ -62,13 +62,18 @@ public class GeminiService {
     }
 
     private String buildPrompt(String voiceText, String medicalHistory) {
-        return "Task: emergency triage for input: " + voiceText + " with history: " + medicalHistory + 
-               ". Return raw JSON: {symptoms[], severity[1-10], urgency, likely_condition, recommended_action, first_aid_instructions, requires_emergency_contact[bool]}";
+        return "SYSTEM: Critical Care Triage Orchestrator (Level 1 Trauma Protocol).\n" +
+               "INPUT: \"" + voiceText + "\"\n" +
+               "CONTEXT: " + (medicalHistory != null ? medicalHistory : "None") + "\n\n" +
+               "TASK: 1. Reason about physiology. 2. Cross-reference history. 3. Output EXACT JSON.\n" +
+               "RULES: If VISION LOSS, CHEST PAIN, or BREATHING ISSUE -> severity: 10, action: 'call_ambulance'.\n" +
+               "JSON STRUCTURE: {symptoms[], severity[1-10], urgency, likely_condition, recommended_action, first_aid_instructions, requires_emergency_contact[bool]}";
     }
 
     private String callGeminiAPI(String prompt) throws Exception {
         String url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
-        String body = "{\"contents\":[{\"parts\":[{\"text\":\"" + prompt + "\"}]}]}";
+        // Optimized for high reasoning (Higher Top-K)
+        String body = "{\"contents\":[{\"parts\":[{\"text\":\"" + prompt + "\"}]}], \"generationConfig\": {\"temperature\": 0.2, \"topK\": 50, \"responseMimeType\": \"application/json\"}}";
         HttpRequest req = HttpRequest.newBuilder().uri(URI.create(url)).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build();
         HttpResponse<String> res = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
         JsonNode root = objectMapper.readTree(res.body());
@@ -98,19 +103,21 @@ public class GeminiService {
         String inst = "Seek help if symptoms persist.";
         String lowerInput = (input != null) ? input.toLowerCase() : "";
         
-        // Comprehensive Emergency Keyword Engine (Fail-Safe)
+        // 110% Safety Engine: Comprehensive Stroke, Cardiac, and Poisoning detection
         if (lowerInput.contains("breath") || lowerInput.contains("chest") || lowerInput.contains("heart") || 
             lowerInput.contains("pain") || lowerInput.contains("bleed") || lowerInput.contains("stroke") ||
             lowerInput.contains("see") || lowerInput.contains("vision") || lowerInput.contains("blind") ||
-            lowerInput.contains("eye") || lowerInput.contains("faint") || lowerInput.contains("conscious")) {
+            lowerInput.contains("face") || lowerInput.contains("arm") || lowerInput.contains("speech") ||
+            lowerInput.contains("poison") || lowerInput.contains("toxic") || lowerInput.contains("faint") ||
+            lowerInput.contains("conscious")) {
             
             sev = 10; 
             action = "call_ambulance"; 
-            inst = "🚨 CRITICAL: CALL EMERGENCY SERVICES IMMEDIATELY! Possible stroke or severe injury detected. Keep the person still.";
+            inst = "🚨 CRITICAL: CALL EMERGENCY SERVICES IMMEDIATELY! Life-threatening symptoms detected (Fast Protocol). Keep the person still.";
         }
         
-        return new TriageResponse(List.of("Fallback Analysis (Safety Engine Active)"), sev, sev >= 8 ? "immediate" : "non-urgent", 
-                                  "Emergency Rule-Engine Match", action, inst, sev >= 8, time);
+        return new TriageResponse(List.of("Fallback Analysis (110% Safety Engine Active)"), sev, sev >= 8 ? "immediate" : "non-urgent", 
+                                  "Emergency Protocol Match", action, inst, sev >= 8, time);
     }
 
     private static String normalizeModelId(String m) { return m != null && m.startsWith("models/") ? m.substring(7) : (m == null ? "gemini-1.5-flash" : m); }
